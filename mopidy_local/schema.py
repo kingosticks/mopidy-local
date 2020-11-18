@@ -30,6 +30,16 @@ _BROWSE_QUERIES = {
      ORDER BY %%s
     """
     % (Ref.TRACK, Ref.ALBUM),
+    "by_artist": """
+    SELECT CASE WHEN artist.uri IS NULL THEN '%s' ELSE '%s' END AS type,
+           coalesce(artist.uri, track.uri) AS uri,
+           coalesce(artist.name, track.name) AS name
+      FROM track LEFT OUTER JOIN artist ON track.artists = artist.uri
+     WHERE %%s
+     GROUP BY coalesce(artist.uri, track.uri)
+     ORDER BY %%s
+    """
+    % (Ref.TRACK, Ref.ARTIST),
     Ref.ALBUM: """
     SELECT '%s' AS type, uri AS uri, name AS name
       FROM album
@@ -256,9 +266,9 @@ def exists(c, uri):
     return rows.fetchone()[0]
 
 
-def browse(c, type=None, order=("type", "name COLLATE NOCASE"), **kwargs):
+def browse(c, type=None, order=("type", "name COLLATE NOCASE"), group=None, **kwargs):
     filters, params = _filters(_BROWSE_FILTERS[type], **kwargs)
-    sql = _BROWSE_QUERIES[type] % (" AND ".join(filters) or "1", ", ".join(order))
+    sql = _BROWSE_QUERIES[group or type] % (" AND ".join(filters) or "1", ", ".join(order))
     logger.debug("SQLite browse query %r: %s", params, sql)
     return [Ref(**row) for row in c.execute(sql, params)]
 

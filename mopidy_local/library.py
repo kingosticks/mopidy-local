@@ -3,6 +3,7 @@ import operator
 import sqlite3
 
 import uritools
+
 from mopidy import backend, models
 from mopidy.models import Ref, SearchResult
 
@@ -19,7 +20,7 @@ def date_ref(date):
 
 def genre_ref(genre):
     return Ref.directory(
-        uri=uritools.uricompose("local", None, "directory", {"genre": genre}),
+        uri=uritools.uricompose("local", None, "directory", {"genre": genre, "group": "by_artist"}),
         name=genre,
     )
 
@@ -149,6 +150,7 @@ class LocalLibraryProvider(backend.LibraryProvider):
         query = dict(uritools.urisplit(uri).getquerylist())
         type = query.pop("type", None)
         role = query.pop("role", None)
+        group = query.pop("group", None)
 
         # TODO: handle these in schema (generically)?
         if type == "date":
@@ -167,7 +169,7 @@ class LocalLibraryProvider(backend.LibraryProvider):
 
         refs = []
         for ref in schema.browse(
-            self._connect(), type, order, role=roles, **query
+            self._connect(), type, order, group=group, role=roles, **query
         ):  # noqa
             if ref.type == Ref.TRACK or (not query and not role):
                 refs.append(ref)
@@ -184,6 +186,7 @@ class LocalLibraryProvider(backend.LibraryProvider):
                     )
                 )
             elif ref.type == Ref.ARTIST:
+                role = role or "artist"
                 refs.append(
                     Ref.directory(
                         uri=uritools.uricompose(
